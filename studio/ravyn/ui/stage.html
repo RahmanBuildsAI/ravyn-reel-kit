@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/>
+<title>stage</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<style id="baseCss"></style>
+<style id="fontCss"></style>
+</head>
+<body><div id="root" class="clip"></div>
+<script type="module">
+// The stage: the composition itself, built by the SAME compiler that writes the render file.
+// The parent page owns the clock and calls __stage.tick(t, mode) every animation frame.
+import { clipElements, baseCss, compileOps, applyOps, fontsUsed, sortedClips, sceneHtml } from "/lib/compile.mjs";
+import { fontFaceCss } from "/lib/fonts.mjs";
+import { clipEnd } from "/lib/model.mjs";
+
+const root = document.getElementById("root");
+let P = null, tl = null, opts = { assetBase: "/reels/", srcMap: {} }, clipsById = new Map();
+const mediaUrl = (src) => (opts.srcMap[src]) || (src.startsWith("pack:") ? "/pack/" + src.slice(5).split("/").map(encodeURIComponent).join("/") : "/reels/" + src.split("/").map(encodeURIComponent).join("/"));
+
+function patchAttrs(el, tmp) {
+  for (const a of [...el.attributes]) if (!tmp.hasAttribute(a.name) && a.name !== "data-cr-sig") el.removeAttribute(a.name);
+  for (const a of [...tmp.attributes]) if (el.getAttribute(a.name) !== a.value) {
+    if (a.name === "src" && el.getAttribute("src") === a.value) continue;
+    el.setAttribute(a.name, a.value);
+  }
+}
+function mount(project, o = {}) {
+  P = project; opts = { ...opts, ...o };
+  document.getElementById("baseCss").textContent = baseCss(P);
+  document.getElementById("fontCss").textContent = fontFaceCss(fontsUsed(P), "/reels/fonts/");
+  const srcMap = {};
+  for (const c of P.clips) for (const s of [c.src, c.icon]) if (s) srcMap[s] = mediaUrl(s);
+  const wanted = new Map();
+  clipsById = new Map();
+  const sc = sceneHtml(P);
+  if (sc) for (const m of sc.matchAll(/<div[^>]*id="(S\d+)"[^>]*><\/div>/g)) wanted.set(m[1], m[0].trim());
+  for (const c of sortedClips(P)) {
+    for (const e of clipElements(P, c, { assetBase: "", srcMap })) { clipsById.set(e.id, c); wanted.set(e.id, e.html); }
+  }
+  // remove stale
+  for (const el of [...root.children]) if (el.id !== "wm" && !wanted.has(el.id)) el.remove();
+  // add / patch, keeping DOM order = paint order
+  let cursor = null;
+  for (const [id, html] of wanted) {
+    let el = document.getElementById(id);
+    if (el && el.dataset.crSig !== html) {
+      const tmp = document.createElement("div"); tmp.innerHTML = html; const fresh = tmp.firstElementChild;
+      if (el.tagName === fresh.tagName && (el.tagName !== "VIDEO" && el.tagName !== "AUDIO" && el.tagName !== "IMG" || el.getAttribute("src") === fresh.getAttribute("src"))) {
+        patchAttrs(el, fresh); el.innerHTML = fresh.innerHTML;
+      } else { el.replaceWith(fresh); el = fresh; }
+      el.dataset.crSig = html;
+    } else if (!el) {
+      const tmp = document.createElement("div"); tmp.innerHTML = html; el = tmp.firstElementChild; el.dataset.crSig = html;
+      root.append(el);
+    }
+    if (el.tagName === "VIDEO") { el.muted = true; el.playsInline = true; }
+    if (el.tagName === "AUDIO") { el.muted = true; }
+    // order
+    if (cursor ? el.previousElementSibling !== cursor : root.firstElementChild !== el) root.insertBefore(el, cursor ? cursor.nextSibling : root.firstChild);
+    cursor = el;
+  }
+  let wm = document.getElementById("wm");
+  if (P.watermark?.on) { if (!wm) { wm = document.createElement("div"); wm.id = "wm"; root.append(wm); } wm.innerHTML = `<span>${(P.watermark.text || "@yourhandle").replace(/</g, "&lt;")}</span>`; root.append(wm); }
+  else if (wm) wm.remove();
+  if (tl) tl.kill();
+  tl = gsap.timeline({ paused: true });
+  applyOps(compileOps(P), gsap, tl);
+  tl.set({}, {}, P.duration);
+  tick(lastT, "scrub", true);
+}
+let lastT = 0;
+const videoState = new WeakMap();
+function tick(t, mode, force) {
+  lastT = t;
+  if (!P || !tl) return;
+  tl.seek(t, false);
+  for (const el of root.children) {
+    const c = clipsById.get(el.id); if (!c) continue;
+    const s = c.start, e = clipEnd(c);
+    const inWin = t >= s - 1e-6 && t < e;
+    el.style.visibility = inWin ? "" : "hidden";
+    // a block's videos sit inside its wrappers
+    const vids = el.tagName === "VIDEO" ? [el] : [...el.querySelectorAll("video")];
+    for (const v of vids) tickVideo(v, c, t, mode, inWin);
+  }
+}
+function tickVideo(el, c, t, mode, inWin) {
+  {
+    const target = t - c.start + (c.mediaStart || 0);
+    try {
+      if (!inWin) { if (!el.paused) el.pause(); return; }
+      if (mode === "play") {
+        if (el.readyState >= 1 && Math.abs(el.currentTime - target) > 0.16) el.currentTime = target;
+        if (el.paused) { const pr = el.play(); if (pr && pr.catch) pr.catch(() => {}); }
+      } else {
+        if (!el.paused) el.pause();
+        if (el.readyState >= 1 && Math.abs(el.currentTime - target) > 0.5 / (P.fps || 30)) el.currentTime = target;
+      }
+    } catch {}
+  }
+}
+function pauseAll() { for (const v of root.querySelectorAll("video")) { try { v.pause(); } catch {} } }
+/* measured height a text clip needs for its content at its current width */
+function measure(id) {
+  const el = document.getElementById(id); if (!el) return null;
+  const span = el.firstElementChild || el;
+  const r = span.getBoundingClientRect();
+  return Math.ceil(r.height + 4);
+}
+function readiness() {
+  const vids = [...root.querySelectorAll("video")];
+  return { videos: vids.length, ready: vids.filter((v) => v.readyState >= 2).length };
+}
+window.__stage = { mount, tick, pauseAll, measure, readiness, ready: () => true };
+window.parent.postMessage({ type: "stage-ready" }, "*");
+</script>
+</body></html>

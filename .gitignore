@@ -1,0 +1,4 @@
+
+# reference videos and their measurements stay on your machine
+breakdowns/*
+!breakdowns/README.md

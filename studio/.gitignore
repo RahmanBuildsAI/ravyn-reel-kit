@@ -1,0 +1,21 @@
+# ravyn's cache, history and build output: rebuilt any time
+.ravyn/
+projects/.history/
+projects/edits/
+projects/notes/snaps/
+/index.html
+/variants/
+/renders/
+/posts/
+/boards/
+# your media stays on your machine
+assets/*
+!assets/README.md
+!assets/example/
+sfx/*
+!sfx/click.wav
+!sfx/tick.wav
+!sfx/slide.wav
+!sfx/paper.wav
+!sfx/README.md
+node_modules/

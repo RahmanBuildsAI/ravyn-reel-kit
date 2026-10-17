@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/>
+<title>ravyn</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="/ui/ravyn.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="/ui/style.css"/>
+</head>
+<body>
+<!-- The layout: a rail on the left opens one drawer at a time, the
+     picture is big in the middle with a floating toolbar on the selection, the right card
+     shows the essentials, the timeline is short and calm. Ctrl+/ opens the command box. -->
+<header id="top">
+  <div class="brand"><img src="/ui/ravyn.svg" alt=""/>ravyn</div>
+  <select id="projectPick" title="Open a project"><option value="">open a project</option></select>
+  <button id="btnNew" class="quiet" title="New project from a reel's ingest">New</button>
+  <span id="saveState" class="save-state">no project</span>
+  <div id="modeSwitch" title="E flips between them"><button data-mode="review">Review</button><button data-mode="edit">Edit</button></div>
+  <span class="spacer"></span>
+  <button id="paletteBox" class="palette-box" title="Ctrl+/ · type what you want to do">Ctrl+/ &nbsp;do anything: split, add text, render …</button>
+  <span class="spacer"></span>
+  <details class="menu" id="exportMenu">
+    <summary class="primary">Export</summary>
+    <div class="menu-body">
+      <button id="btnCompile" title="Write variants/&lt;id&gt;.html">Compile the composition</button>
+      <button id="btnCheck" title="npx hyperframes check on the build">Check (HyperFrames)</button>
+      <button id="btnTest" title="Render 3 seconds from the playhead">Test render 3 s at playhead</button>
+      <button id="btnRender" title="Render the whole reel">Render the reel</button>
+      <button id="btnBoard" title="one frame per scene into boards/BOARD-<id>.html">Board (one frame per scene)</button>
+    </div>
+  </details>
+  <button id="btnLog" class="quiet" title="Job log">Log</button>
+  <button id="btnHelp" class="quiet" title="Where things are, and every key">?</button>
+</header>
+
+<main id="ws">
+  <!-- the rail -->
+  <nav id="rail">
+    <button data-drawer="media" title="Your media (assets, sounds, your SFX library)"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/></svg><span>Media</span></button>
+    <button data-drawer="add" title="Text, shapes, labels, numbers"><svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M8 19h8"/></svg><span>Text</span></button>
+    <button data-drawer="captions" title="Captions from the VO words"><svg viewBox="0 0 24 24"><rect x="3" y="14" width="18" height="6" rx="1"/><path d="M6 17h4M12 17h6"/></svg><span>Captions</span></button>
+    <button data-drawer="sound" title="The core four and sound helpers"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6L8 10H4z"/><path d="M16 9a4 4 0 010 6"/></svg><span>Sound</span></button>
+    <button data-drawer="blocks" title="Blocks: facecam window, chapter card, CTA"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg><span>Blocks</span></button>
+    <button data-drawer="scenes" title="Scenes: full / stack / bubble / none, one row per cut"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/></svg><span>Scenes</span></button>
+    <button data-drawer="notes" title="Review notes: N, then click the spot on the picture"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-10a6 6 0 0112 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></svg><span>Notes</span><b id="notesBadge" class="rbadge" hidden></b></button>
+    <span class="spacer"></span>
+    <button id="railLog" title="Job log"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5l3 2"/></svg><span>Log</span></button>
+  </nav>
+
+  <!-- the drawer: one pane at a time, Esc closes -->
+  <aside id="drawer" hidden>
+    <div class="dhead"><b id="drawerTitle">Media</b><span id="drawerSub" class="dim"></span><span class="spacer"></span><button id="drawerClose" class="quiet" title="close (Esc)">&#10005;</button></div>
+
+    <div class="dpane" data-pane="media">
+      <div class="row"><select id="mediaRoot"></select></div>
+      <div id="mediaCrumb" class="crumb"></div>
+      <div id="mediaList" class="list"></div>
+      <div id="mediaInfo" class="info"></div>
+      <div class="row toolrow">
+        <button id="btnAddAtPlayhead" class="primary" title="Put the selected file on the timeline at the playhead">Add at playhead</button>
+        <button id="btnProxies" class="quiet" title="Make 540px proxies for every video in the project (smooth scrubbing)">Proxies</button>
+      </div>
+      <div id="proxyStatus" class="info"></div>
+      <p class="hint">Double-click a file to add it. Drag it onto the picture or a track. The play button auditions a sound; the number after it is how many times this reel uses it (red past 8).</p>
+    </div>
+
+    <div class="dpane" data-pane="add" hidden>
+      <div class="bigbtns">
+        <button id="btnAddText"><b>Text</b><span>a line of type at the playhead (T)</span></button>
+        <button id="btnAddShape"><b>Shape</b><span>a rectangle or ellipse (R)</span></button>
+        <button id="btnAddVlab"><b>Label</b><span>the mono tag on a footage card</span></button>
+        <button id="btnAddBignum"><b>Big number</b><span>composed and alive, never still</span></button>
+      </div>
+      <p class="hint">Each lands on a free track at the playhead and is selected, so the card on the right is ready to edit. Double-click text on the picture to type.</p>
+    </div>
+
+    <div class="dpane" data-pane="captions" hidden>
+      <div class="bigbtns">
+        <button id="btnAddCaptions"><b>Build captions</b><span>3-word cues from the VO words, on the CAPTIONS track</span></button>
+        <button id="btnSceneCaptions"><b>Captions per scene</b><span>never across a cut, the right caption style per scene</span></button>
+      </div>
+      <div class="row wrap">
+        <label class="dim">words per cue <input id="cueWords" type="number" value="3" min="1" max="7"/></label>
+        <label class="dim">new cue after a pause of <input id="cuePause" type="number" value="0.24" min="0.05" step="0.02"/> s</label>
+      </div>
+      <p class="hint">Select a cue to edit its words, retime them on the strip, or split and merge cues. "Apply this style to every cue" lives on the cue's card.</p>
+    </div>
+
+    <div class="dpane" data-pane="sound" hidden>
+      <div class="dlabel">Quick sounds (studio/sfx)</div>
+      <div class="sfxbar">
+        <button data-sfx="sfx/paper.wav" title="the highlight sweep on a receipt, any paper reveal">paper</button>
+        <button data-sfx="sfx/click.wav" title="small transitions, list items landing, UI taps">click</button>
+        <button data-sfx="sfx/tick.wav" title="fine ticks: typing, counters, rows">tick</button>
+        <button data-sfx="sfx/slide.wav" title="a card or the window moving into place">slide</button>
+      </div>
+      <p class="hint">Each drops at the playhead on a free audio track.</p>
+      <div class="dlabel">Helpers</div>
+      <div class="bigbtns">
+        <button id="btnSfxMarkers"><b>Picked sound on every marker</b><span>the sound selected in Media, at each of your jump cuts</span></button>
+        <button id="btnSceneSound"><b>Sound on scene changes</b><span>the picked sound on every scene cut</span></button>
+      </div>
+    </div>
+
+    <div class="dpane" data-pane="blocks" hidden>
+      <div class="bigbtns">
+        <button id="btnAddFacecam"><b>Facecam</b><span>your camera as a window that changes shape per scene</span></button>
+        <button id="btnAddChapter"><b>Chapter card</b><span>spotlight card at the playhead</span></button>
+        <button id="btnAddCta"><b>CTA lockup</b><span>Comment + the keyword, over your full-frame face</span></button>
+      </div>
+      <p class="hint">Order: Facecam, then a scene cut at each beat (Scenes), then Captions per scene, then Gate from Export.</p>
+    </div>
+
+    <div class="dpane" data-pane="scenes" hidden>
+      <div class="bigbtns">
+        <button id="btnBoundary"><b>Scene cut at playhead</b><span>snapped to your own cut or the silence</span></button>
+      </div>
+      <div id="sceneList" class="scenelist"></div>
+      <p class="hint">Click a row to jump there. The state cycles when you click the coloured span on the timeline's SCENES row; drag its left edge to move the cut.</p>
+    </div>
+    <div class="dpane" data-pane="notes" hidden>
+      <div class="row">
+        <button class="primary" data-notes-arm="spot" title="then click the spot on the picture, or drag a box (N)">+ Note</button>
+        <button data-notes-arm="arrow" title="drag from the thing to where it should go (Shift+N)">&#10132; Arrow</button>
+        <span class="spacer"></span>
+        <select data-notes-filter title="which notes to list"><option value="open">to do</option><option value="all">all</option></select>
+      </div>
+      <div class="info" data-notes-count></div>
+      <div class="notelist" data-notes-list></div>
+      <p class="hint">Click a note to jump to its frame. Double-click to edit. Notes save to projects/notes/&lt;id&gt;.json and never touch the edit or its undo.</p>
+    </div>
+  </aside>
+
+  <!-- the picture -->
+  <section id="center">
+    <div id="viewport">
+      <div id="stageWrap">
+        <iframe id="stage" src="/stage.html" title="stage"></iframe>
+        <video id="renderVideo" hidden playsinline preload="auto"></video>
+        <div id="safezone" hidden></div>
+        <div id="igOverlay" hidden><svg viewBox="0 0 1080 1920" width="1080" height="1920" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+          <!-- a local preview of the Instagram Reels chrome (no counts): what a viewer's screen covers -->
+          <defs>
+            <linearGradient id="igTopShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".45"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
+            <linearGradient id="igBotShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient>
+          </defs>
+          <rect x="0" y="0" width="1080" height="260" fill="url(#igTopShade)" stroke="none"/>
+          <rect x="0" y="1360" width="1080" height="560" fill="url(#igBotShade)" stroke="none"/>
+          <text x="48" y="138" font-size="54" font-weight="700" fill="#fff" stroke="none" font-family="Segoe UI,Arial">Reels</text>
+          <g transform="translate(1004,120)"><rect x="-32" y="-24" width="64" height="50" rx="12"/><circle cx="0" cy="1" r="13"/></g>
+          <g transform="translate(1004,1130)"><path d="M0,-14 C-10,-36 -44,-30 -44,-3 C-44,19 -18,35 0,50 C18,35 44,19 44,-3 C44,-30 10,-36 0,-14 Z"/></g>
+          <g transform="translate(1004,1270)"><path d="M26,30 A38,38 0 1 0 -4,38 L30,44 Z"/></g>
+          <g transform="translate(1004,1400)"><path d="M-40,-32 L40,-32 L-4,40 L-12,0 Z M-12,0 L40,-32"/></g>
+          <g transform="translate(1004,1515)" fill="#fff" stroke="none"><circle cx="-18" cy="0" r="6"/><circle cx="0" cy="0" r="6"/><circle cx="18" cy="0" r="6"/></g>
+          <g transform="translate(1004,1625)"><rect x="-32" y="-32" width="64" height="64" rx="12" fill="#2a2a2a" stroke-width="4"/></g>
+          <circle cx="84" cy="1600" r="40" fill="#A831C9" stroke="#fff" stroke-width="3"/>
+          <text x="84" y="1614" font-size="38" font-weight="800" fill="#fff" stroke="none" text-anchor="middle" font-family="Segoe UI,Arial">R</text>
+          <text x="142" y="1614" font-size="34" font-weight="700" fill="#fff" stroke="none" font-family="Segoe UI,Arial">yourhandle</text>
+          <rect x="384" y="1574" width="128" height="54" rx="12" stroke-width="3"/>
+          <text x="448" y="1611" font-size="28" font-weight="600" fill="#fff" stroke="none" text-anchor="middle" font-family="Segoe UI,Arial">Follow</text>
+          <text id="igCaption" x="48" y="1690" font-size="30" fill="#fff" stroke="none" font-family="Segoe UI,Arial">your caption, the first line...</text>
+          <text x="48" y="1748" font-size="27" fill="#fff" stroke="none" font-family="Segoe UI,Arial">&#9835; yourhandle · Original audio</text>
+          <g transform="translate(0,1872)" stroke-width="4">
+            <path d="M84,-6 L108,-28 L132,-6 L132,22 L84,22 Z"/>
+            <circle cx="324" cy="-4" r="20"/><path d="M338,10 L352,24"/>
+            <rect x="518" y="-26" width="44" height="44" rx="10"/><path d="M540,-14 L540,6 M530,-4 L550,-4"/>
+            <rect x="734" y="-26" width="44" height="44" rx="10"/><path d="M750,-12 L766,-4 L750,4 Z" fill="#fff"/>
+            <circle cx="972" cy="-4" r="22"/>
+          </g>
+        </svg></div>
+        <svg id="overlay"></svg>
+        <div id="notePins"></div>
+        <div id="textEditor" hidden contenteditable="true" spellcheck="false"></div>
+      </div>
+      <div id="floatbar" hidden>
+        <button data-act="centre" title="centre on the frame">centre</button>
+        <button data-act="fill" title="fill the frame">fill</button>
+        <i></i>
+        <button data-act="forward" title="bring forward (Alt+Up)">&uarr; forward</button>
+        <button data-act="back" title="send back (Alt+Down)">&darr; back</button>
+        <i></i>
+        <button data-act="split" title="split at the playhead (Ctrl+K)">split</button>
+        <button data-act="edit" title="edit the text" hidden>edit text</button>
+        <button data-act="open" title="open the group (double-click)" hidden>open</button>
+        <button data-act="ungroup" title="ungroup (Ctrl+Shift+G)" hidden>ungroup</button>
+        <button data-act="delete" class="danger" title="delete (Delete)">delete</button>
+      </div>
+      <span id="stageInfo" class="stage-info"></span>
+      <div id="beforeTag" hidden></div>
+      <div id="srcTag" hidden></div>
+      <div id="noteModeTag" hidden>NOTE · click the spot, or drag a box around it · Esc to cancel</div>
+      <div id="noteBox" hidden></div>
+    </div>
+    <div id="transport">
+      <span id="clock" class="clock">00:00:00</span>
+      <span id="clockSec" class="dim">0.00s</span>
+      <span class="spacer"></span>
+      <button id="btnStart" title="Home">|&#9664;</button>
+      <button id="btnBackF" title="one frame back (Left)">&#9664;</button>
+      <button id="btnPlay" class="big" title="Space">&#9654;</button>
+      <button id="btnFwdF" title="one frame on (Right)">&#9654;</button>
+      <button id="btnEnd" title="End">&#9654;|</button>
+      <span class="spacer"></span>
+      <button id="btnNote" title="Note on the picture (N): click a spot or drag a box. Shift+N: an arrow">&#9998; note</button>
+      <button id="btnRate" title="playback speed (&lt; &gt;)">1x</button>
+      <button id="btnSource" title="play the real render instead of the live preview (P)">&#9635; preview</button>
+      <button id="btnFull" title="Full screen (F) · Esc leaves">&#x26F6; full</button>
+      <span id="speedTag" class="dim"></span>
+      <span id="sceneTag" class="dim"></span>
+      <details class="menu small"><summary>View</summary><div class="menu-body">
+        <label><input type="checkbox" id="chkSafe"/> safe zones (platform UI + y1700)</label>
+        <label><input type="checkbox" id="chkProxy" checked/> play proxies</label>
+        <label><input type="checkbox" id="chkIG"/> Instagram overlay (O)</label>
+      </div></details>
+    </div>
+
+    <!-- review mode: the scene strip in place of the timeline -->
+    <section id="reviewStrip">
+      <div id="rsWrap"><div id="rsNotes"></div><div id="rsBar" title="press and drag to scrub"></div><div id="rsHead"></div></div>
+      <div class="rsHint dim">scenes (purple full · indigo stack · teal bubble · grey elements only) · <b>N</b> note · <b>Shift+N</b> arrow · <b>G</b> / <b>X</b> scene good / not right · <b>[ ]</b> notes · <b>, .</b> scenes · <b>&lt; &gt;</b> speed · <b>P</b> render · <b>O</b> Instagram · <b>F</b> full · <b>E</b> edit mode</div>
+    </section>
+
+    <div id="tlResizer" title="drag to resize"></div>
+
+    <!-- the timeline: calm by default, every tool still one click away -->
+    <section id="tlPanel">
+      <div id="tlBar">
+        <button id="toolSelect" class="tool on" title="Selection (V)"><svg viewBox="0 0 24 24"><path d="M5 3l14 9-6 1-3 6z"/></svg></button>
+        <button id="toolRazor" class="tool" title="Razor (C): click a clip to cut it"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 7.5L20 19M8.5 16.5L20 5"/></svg></button>
+        <span id="tlCrumb" hidden><button id="crumbBack" class="quiet" title="back to the reel (Esc)">&#9664; reel</button><b id="crumbName"></b></span>
+        <span class="vsep"></span>
+        <button id="btnSplit" class="quiet" title="Split everything under the playhead (Ctrl+K)">split</button>
+        <button id="btnMarker" class="quiet" title="Marker at the playhead (M)">marker</button>
+        <span class="spacer"></span>
+        <span id="tlTitle" class="dim"></span>
+        <span class="spacer"></span>
+        <button id="zoomFit" class="quiet" title="fit the whole reel">fit</button>
+        <details class="menu small" id="tlMore"><summary>more</summary><div class="menu-body">
+          <label><input type="checkbox" id="chkSnap" checked/> snap to edges, markers, playhead (S)</label>
+          <label><input type="checkbox" id="chkSnapWords"/> snap to every VO word</label>
+          <label><input type="checkbox" id="chkFoldEmpty" checked/> fold empty tracks</label>
+          <label><input type="checkbox" id="chkFoldAudio"/> fold the audio tracks</label>
+          <button id="btnAddVTrack">add a video track</button>
+          <button id="btnAddATrack">add an audio track</button>
+          <div class="row"><button id="zoomOut" class="quiet">zoom &minus;</button><button id="zoomIn" class="quiet">zoom +</button><span class="dim">Ctrl+wheel too</span></div>
+        </div></details>
+      </div>
+      <div id="tlBody">
+        <div id="tlHeads"></div>
+        <div id="tlScroll">
+          <canvas id="tlRuler"></canvas>
+          <div id="tlLanes"></div>
+          <div id="playhead"></div>
+          <div id="marquee" hidden></div>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- the card: essentials first, the rest behind arrows -->
+  <!-- review mode: the scene you are on, Claude's fixes to check, your hand edits, the notes -->
+  <aside id="reviewSide">
+    <div id="rvScene" class="rvCard"></div>
+    <button id="rvCheckStart" hidden></button>
+    <div id="rvCheck" class="rvCard" hidden></div>
+    <div id="rvEdits" hidden></div>
+    <div class="dhead"><b>Notes</b><span class="dim" data-notes-count></span><span class="spacer"></span><select data-notes-filter title="which notes to list"><option value="open">to do</option><option value="all">all</option></select></div>
+    <div class="row"><button class="primary" data-notes-arm="spot" title="then click the spot on the picture, or drag a box (N)">+ Note</button><button data-notes-arm="arrow" title="drag from the thing to where it should go (Shift+N)">&#10132; Arrow note</button></div>
+    <div class="notelist" data-notes-list></div>
+  </aside>
+
+  <aside id="right">
+    <div class="dhead"><span id="fxDot" class="dot"></span><b id="fxTitle">nothing selected</b><span id="fxSub" class="dim"></span></div>
+    <div id="inspector"></div>
+  </aside>
+</main>
+
+<footer id="status"><span id="statusLine">open a project</span></footer>
+
+<div id="palette" hidden>
+  <input id="paletteInput" type="text" placeholder="type what you want: split, add text, render, fit, snap …" autocomplete="off"/>
+  <div id="paletteList"></div>
+</div>
+
+<div id="log" hidden>
+  <div class="log-head"><b>JOB LOG</b> <span id="logState" class="dim"></span><span class="spacer"></span><button id="logClear" class="quiet">clear</button><button id="logClose" class="quiet">close</button></div>
+  <pre id="logBody"></pre>
+</div>
+
+<dialog id="dlgNew">
+  <form method="dialog">
+    <h3>New project</h3>
+    <label>Reel number <input name="reel" type="number" min="1" placeholder="38"/></label>
+    <label>Slug <input name="slug" placeholder="topic-in-words" required/></label>
+    <label>Title <input name="title" placeholder="Reel 1 · the hook line"/></label>
+    <label>fps <input name="fps" type="number" value="30"/></label>
+    <label><input name="ingest" type="checkbox" checked/> import the ingest (facecam, VO, words, your cuts) from assets/rNN</label>
+    <menu><button value="cancel" class="quiet">Cancel</button><button value="ok" id="dlgNewOk">Create</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlgHelp">
+  <div class="help">
+    <h3>Where things are</h3>
+    <table>
+      <tr><td>Review mode</td><td>the default: the picture, a scene strip, and a side panel with the scene you are on (good / not right), Claude's fixes to check (before / after), your hand edits and the notes. Clicking the picture does nothing but notes; E opens the full editor. Anything you move or retype in Edit mode is kept through Claude's rebuilds.</td></tr>
+      <tr><td>The rail</td><td>left edge: Media, Text, Captions, Sound, Blocks, Scenes. One click opens a drawer, Esc or the same click closes it.</td></tr>
+      <tr><td>The picture</td><td>click to select, drag to move, corners to resize, the round handle to rotate, double-click text to type. A small toolbar appears on what you select. Right-click for more.</td></tr>
+      <tr><td>The card</td><td>right side: the essentials of the selected clip. The arrows below open keyframes, effects, media and the rest. The diamond next to a value keys it at the playhead.</td></tr>
+      <tr><td>The timeline</td><td>bottom: selection and razor tools, split, marker, fit. Everything else (snap, fold, tracks, zoom) is under "more". Right-click a clip for its menu.</td></tr>
+      <tr><td>Groups</td><td>select clips, Ctrl+G: they become one block. Double-click the block to work inside it (the timeline shows only its tracks, the picture keeps the whole reel), Esc or the reel button to come back, Ctrl+Shift+G to ungroup. Clips keep their real times, so nothing moves.</td></tr>
+      <tr><td>Ctrl+/</td><td>the command box: type what you want and press Enter.</td></tr>
+      <tr><td>Notes</td><td>N (or "note" under the picture), then click the spot or drag a box, type, Enter. The pin shows around its frame and on the ruler. The Notes drawer lists them all: click to jump, double-click to edit, the tick marks one fixed. Claude reads them with <code>node ravyn/cli.mjs notes &lt;reel&gt;</code>.</td></tr>
+      <tr><td>Export</td><td>top right: Compile, Check, Test render, Render, Board, in order. One job at a time; the Log shows it.</td></tr>
+    </table>
+    <h3>Keys</h3>
+    <table>
+      <tr><td>Space</td><td>play / pause</td><td>J K L</td><td>shuttle back / pause / forward</td></tr>
+      <tr><td>&larr; &rarr;</td><td>one frame (Shift: 10)</td><td>Home / End</td><td>start / end</td></tr>
+      <tr><td>&uarr; &darr;</td><td>previous / next edit point</td><td>V / C</td><td>selection / razor tool</td></tr>
+      <tr><td>Ctrl+K</td><td>split at playhead</td><td>Delete</td><td>delete (Shift: ripple)</td></tr>
+      <tr><td>Ctrl+Z / Ctrl+Shift+Z</td><td>undo / redo</td><td>Ctrl+D</td><td>duplicate after itself</td></tr>
+      <tr><td>Ctrl+C / Ctrl+V</td><td>copy / paste at playhead</td><td>Ctrl+A</td><td>select all</td></tr>
+      <tr><td>Alt+&uarr; / Alt+&darr;</td><td>bring forward / send back</td><td>Ctrl+] / Ctrl+[</td><td>same</td></tr>
+      <tr><td>Alt+&larr; / Alt+&rarr;</td><td>nudge clip one frame (Shift: 10)</td><td>Ctrl+arrows</td><td>nudge on the picture 1px (Shift: 10)</td></tr>
+      <tr><td>M</td><td>marker</td><td>S</td><td>snap on/off</td></tr>
+      <tr><td>N</td><td>note on the picture</td><td>Shift+N</td><td>arrow note: drag from the thing to where it goes</td></tr>
+      <tr><td>E</td><td>Review mode / Edit mode</td><td>[ / ]</td><td>previous / next note</td></tr>
+      <tr><td>, / .</td><td>previous / next scene</td><td>G / X</td><td>scene good / not right</td></tr>
+      <tr><td>&lt; / &gt;</td><td>slower / faster (1x, 1.5x, 2x)</td><td>B</td><td>before / after on a fixed note</td></tr>
+      <tr><td>P</td><td>the real render / the live preview</td><td>O</td><td>Instagram overlay</td></tr>
+      <tr><td>F</td><td>full screen (picture + play bar)</td><td>Esc</td><td>leave full screen</td></tr>
+      <tr><td>T / R</td><td>add text / rectangle</td><td>+ / &minus;</td><td>zoom timeline (Ctrl+wheel too)</td></tr>
+      <tr><td>Alt+drag a clip</td><td>slip the media inside it</td><td>Ctrl+drag an edge</td><td>roll the seam</td></tr>
+      <tr><td>Ctrl+G</td><td>group the selection</td><td>Ctrl+Shift+G</td><td>ungroup</td></tr>
+      <tr><td>Ctrl+/</td><td>command box</td><td>Esc</td><td>close / deselect / leave the group</td></tr>
+    </table>
+    <p>Manual: <code>ravyn/README.md</code>. Project files: <code>projects/&lt;id&gt;.json</code>. Compile writes <code>variants/&lt;id&gt;.html</code>.</p>
+    <form method="dialog"><menu><button value="ok">Close</button></menu></form>
+  </div>
+</dialog>
+
+<script type="module" src="/ui/app.js"></script>
+</body></html>

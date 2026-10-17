@@ -1,0 +1,12 @@
+@font-face{font-family:Inter;font-weight:500;src:url(../../../fonts/Inter-latin-500.woff2)}
+@font-face{font-family:Inter;font-weight:800;src:url(../../../fonts/Inter-latin-800.woff2)}
+@font-face{font-family:Inter;font-weight:900;src:url(../../../fonts/Inter-latin-900.woff2)}
+@font-face{font-family:Mono;font-weight:500;src:url(../../../fonts/JetBrainsMono-latin-500.woff2)}
+@font-face{font-family:Mono;font-weight:700;src:url(../../../fonts/JetBrainsMono-latin-700.woff2)}
+html,body{margin:0;background:transparent}
+body{width:1040px;height:800px;display:grid;place-items:center;font-family:Inter;color:#232323}
+.card{width:960px;height:720px;border-radius:24px;background:#FBFBFB;box-shadow:0 18px 40px rgba(0,0,0,.12),0 2px 6px rgba(0,0,0,.06);box-sizing:border-box;padding:56px 60px;position:relative;overflow:hidden}
+.term{width:960px;height:720px;border-radius:26px;background:#141416;box-shadow:0 18px 40px rgba(0,0,0,.22);box-sizing:border-box;padding:92px 56px 40px;position:relative;color:#E8E8E8;font:500 34px/1.62 Mono}
+.term:before{content:"";position:absolute;left:44px;top:38px;width:18px;height:18px;border-radius:50%;background:#FF5F57;box-shadow:30px 0 #FEBC2E,60px 0 #28C840}
+.term b{color:#9DB2FF;font-weight:500}.term i{font-style:normal;color:#7DDC8B}.term u{text-decoration:none;color:#8A8A8A}
+.eye{font:700 22px Mono;letter-spacing:.16em;color:#8A8A8A;text-transform:uppercase}

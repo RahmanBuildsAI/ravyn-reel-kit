@@ -1,0 +1,12 @@
+{
+  "name": "ravyn-studio",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "ravyn": "node ravyn/server.mjs",
+    "test": "node ravyn/test/model.test.mjs && node ravyn/test/edits.test.mjs && node ravyn/test/notes.test.mjs && node ravyn/test/group.test.mjs",
+    "preview": "npx --yes hyperframes@0.7.89 preview",
+    "check": "npx --yes hyperframes@0.7.89 check",
+    "render": "npx --yes hyperframes@0.7.89 render"
+  }
+}
